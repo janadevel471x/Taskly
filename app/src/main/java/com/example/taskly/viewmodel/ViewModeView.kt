@@ -11,7 +11,7 @@ import javax.inject.Singleton
 @Singleton
 class ViewModelView : ViewModel(){
     fun saveBitMapToCatch(context: Context, bitmap: Bitmap):Uri{
-        val file: File = File(context.cacheDir, "Taskly_profile_image.jpg")
+        val file: File = File(context.cacheDir, "Taskly_profile1_image.jpg")
         file.outputStream().use {
             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
         }
