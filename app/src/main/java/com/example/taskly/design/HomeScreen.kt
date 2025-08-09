@@ -1,9 +1,17 @@
 package com.example.taskly.design
 
 import NotesCardView
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.util.Log
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -30,7 +39,9 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +50,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
@@ -47,12 +61,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.taskly.NavItem
 import com.example.taskly.R
+import com.example.taskly.viewmodel.ViewModelView
+import java.io.File
 
 
 @Composable
-fun HomeScreen(onCliCK: (String) -> Unit) {
+fun HomeScreen(viewModel: ViewModelView = hiltViewModel(), onclick: () -> Unit) {
     var isSheet by remember {
         mutableStateOf(false)
     }
@@ -166,7 +185,7 @@ fun HomeScreen(onCliCK: (String) -> Unit) {
                     )
                 }
 
-                Header()
+                Header(viewModel)
             }
             Spacer(
                 modifier = Modifier
@@ -222,19 +241,32 @@ fun Icon(painter: Unit, contentDescription: String, tint: Color) {
 }
 
 @Composable
-fun Header() {
+fun Header(viewModel: ViewModelView) {
+    var showPicker = remember { mutableStateOf(false) }
+    val bitmap by viewModel.imageBitmap
     Box(
         modifier = Modifier
             .width(42.dp)
             .height(42.dp)
             .clip(CircleShape)
             .background(Color.Gray)
+            .clickable {
+                showPicker.value = true
+            }
 
     ) {
-        Icon(
-            modifier = Modifier.align(alignment = Alignment.Center),
-            imageVector = Icons.Default.Person, contentDescription = null, tint = Color.White
-        )
+
+        bitmap?.let {
+            Image(
+                bitmap = it.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.size(200.dp)
+            )
+        }
+    }
+
+    if (showPicker.value) {
+        ProfileImagePicker(viewModel, showDialog = showPicker)
     }
 }
 
@@ -336,9 +368,87 @@ fun ProfileScreen() {
 //        }
 //    }
 //}
+@Composable
+fun ProfileImagePicker(viewModel: ViewModelView, showDialog: MutableState<Boolean>) {
+    val context = LocalContext.current
+
+
+    val photoUri = remember {
+        FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            File(context.cacheDir, "profile_temp.jpg")
+        )
+    }
+    val cameraImage = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { bitmap ->
+        if (bitmap) {
+            viewModel.uriToBitmap(context, photoUri)?.let {
+                viewModel.setImage(it)
+            }
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) {
+        it?.let {
+           viewModel.uriToBitmap(context, it)?.let {bmp->
+               viewModel.setImage(bmp)
+           }
+        }
+    }
+
+    // permission required
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        if (it) {
+            cameraImage.launch(photoUri)
+        } else {
+            Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    if (showDialog.value) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Select a Image") },
+            text = { Text("Choose an option") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDialog.value = false
+                        if (ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.CAMERA
+                            ) == PackageManager.PERMISSION_GRANTED
+                        ) {
+                            cameraImage.launch(photoUri)
+                        } else {
+                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    }
+                ) {
+                    Text("Take Photo")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDialog.value = false
+                        galleryLauncher.launch("image/*")
+                    }) {
+                    Text("Choose from Gallery")
+                }
+            }
+        )
+    }
+
+}
 
 @Preview
 @Composable
 fun Preview() {
-    HomeScreen { }
 }

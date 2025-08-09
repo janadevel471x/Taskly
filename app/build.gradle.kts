@@ -83,4 +83,7 @@ dependencies {
     //viewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.2")
 
+    //hilt navigation for compose
+    implementation ("androidx.hilt:hilt-navigation-compose:1.2.0")
+
 }

@@ -15,8 +15,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.taskly.design.HomeScreen
 import com.example.taskly.ui.theme.TasklyTheme
+import dagger.hilt.android.AndroidEntryPoint
 
-
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,7 +25,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
             HomeScreen(){
-                Toast.makeText(context,it, Toast.LENGTH_LONG).show()
             }
         }
     }
